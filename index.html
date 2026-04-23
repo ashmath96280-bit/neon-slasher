@@ -3,20 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON SLASHER : MOBILE & PC</title>
+    <title>NEON SLASHER 2.2 - GLOBAL</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: 'Arial Black', sans-serif; color: #fff; cursor: none; touch-action: none; }
         canvas { display: block; }
         .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); z-index: 100; cursor: default; }
         h1 { font-size: clamp(2rem, 8vw, 4rem); text-shadow: 0 0 20px #0ff; margin: 0; color: #0ff; text-align: center; }
-        .btn { padding: 15px 30px; margin: 10px; font-size: 1.1rem; background: transparent; border: 3px solid #0ff; color: #0ff; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        
+        /* BOUTONS CARRÉS COMME DEMANDÉ */
+        .btn { padding: 15px 30px; margin: 10px; font-size: 1.1rem; background: transparent; border: 3px solid #0ff; color: #0ff; cursor: pointer; font-weight: bold; text-transform: uppercase; border-radius: 0; transition: 0.2s; }
         .btn:active { background: #0ff; color: #000; }
-        #hud { position: absolute; top: 10px; width: 100%; display: none; justify-content: space-between; padding: 0 15px; box-sizing: border-box; pointer-events: none; z-index: 50; font-size: 0.9rem; }
-        #combo-ui { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: clamp(50px, 15vw, 100px); font-weight: bold; pointer-events: none; opacity: 0; text-shadow: 0 0 30px #f0f; z-index: 40; }
+        
+        .dropdown-container { display: none; flex-direction: column; align-items: center; background: rgba(255, 0, 255, 0.1); border: 2px solid #f0f; margin-top: -10px; width: 280px; padding: 10px 0; }
+        .btn-chrono-toggle { border-color: #f0f; color: #f0f; width: 280px; }
+        .btn-sub { font-size: 0.9rem; padding: 10px 20px; width: 240px; border-width: 2px; }
+
+        /* LEADERBOARD */
+        .leader-list { width: 85%; max-width: 400px; background: rgba(255,255,255,0.05); border: 1px solid #0ff; padding: 15px; margin: 20px 0; max-height: 250px; overflow-y: auto; }
+        .leader-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; font-family: sans-serif; }
+        input { background: #000; border: 2px solid #0ff; color: #fff; padding: 10px; text-align: center; font-size: 1.2rem; margin-bottom: 10px; border-radius: 0; }
+
+        /* BOUTIQUE ORIGINALE */
         .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
-        .swatch { width: 60px; height: 60px; border-radius: 50%; border: 3px solid #333; display: flex; align-items: center; justify-content: center; position: relative; }
+        .swatch-box { display: flex; flex-direction: column; align-items: center; }
+        .swatch { width: 60px; height: 60px; border: 3px solid #333; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
         .swatch.selected { border-color: #fff; box-shadow: 0 0 15px #fff; }
         .swatch.locked::after { content: '🔒'; font-size: 12px; }
+        .price-tag { font-size: 10px; margin-top: 5px; color: #ffd700; font-weight: bold; }
+
+        #hud { position: absolute; top: 10px; width: 100%; display: none; justify-content: space-between; padding: 0 15px; box-sizing: border-box; pointer-events: none; z-index: 50; font-size: 0.9rem; }
+        #combo-ui { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: clamp(50px, 15vw, 100px); font-weight: bold; pointer-events: none; opacity: 0; text-shadow: 0 0 30px #f0f; z-index: 40; }
     </style>
 </head>
 <body>
@@ -24,40 +44,76 @@
     <div id="home-screen" class="screen">
         <h1>NEON SLASHER</h1>
         <p>BEST: <span id="high-score-val" style="color:#0ff">0</span> | <span id="home-coins">0</span> 🪙</p>
-        <button class="btn" onclick="startGame()">JOUER</button>
+        <button class="btn" onclick="openModes()">JOUER</button>
         <button class="btn" onclick="openShop()">BOUTIQUE</button>
-        <button class="btn" onclick="openSettings()" style="font-size: 0.8rem; opacity: 0.7;">PARAMÈTRES</button>
+        <button class="btn" onclick="openSettings()" style="font-size: 0.8rem; border-width:1px;">PARAMÈTRES</button>
+    </div>
+
+    <div id="mode-screen" class="screen" style="display:none;">
+        <h1>MODES</h1>
+        <button class="btn" onclick="startGame('survival')">SURVIE (5 BOMBES)</button>
+        <button class="btn btn-chrono-toggle" onclick="toggleChrono()">MODES CHRONO ▾</button>
+        <div id="chrono-dropdown" class="dropdown-container">
+            <button class="btn btn-sub" onclick="startGame('chill')">CHILL (INFINI)</button>
+            <button class="btn btn-sub" onclick="startGame('chrono')">CLASSIQUE (3 B.)</button>
+            <button class="btn btn-sub" onclick="startGame('hard')">HARD (0 ERREUR)</button>
+        </div>
+        <button class="btn" onclick="backToHome()" style="border-color:#fff; color:#fff; margin-top:20px;">RETOUR</button>
+    </div>
+
+    <div id="settings-screen" class="screen" style="display:none;">
+        <h1>DATA</h1>
+        <button class="btn" onclick="openLeaderboard()" style="border-color:#ffd700; color:#ffd700;">WORLD CLASSEMENT</button>
+        <button class="btn" onclick="resetData()" style="border-color:red; color:red; font-size: 0.8rem;">RESET TOUT</button>
+        <button class="btn" onclick="closeSettings()">RETOUR</button>
+    </div>
+
+    <div id="leader-screen" class="screen" style="display:none;">
+        <h1>LEADERBOARD</h1>
+        <div id="name-input-section" style="display:none;">
+            <p>TON PSEUDO :</p>
+            <input type="text" id="player-name" maxlength="12" placeholder="NOM...">
+            <button class="btn" onclick="savePseudo()">VALIDER</button>
+        </div>
+        <div id="leader-content" class="leader-list"></div>
+        <button class="btn" onclick="closeSettings()">RETOUR</button>
     </div>
 
     <div id="shop-menu" class="screen" style="display:none;">
         <h1>COLLECTION</h1>
         <div class="shop-grid" id="shop-items"></div>
-        <button class="btn" onclick="closeShop()" style="margin-top:30px">RETOUR</button>
-    </div>
-
-    <div id="settings-screen" class="screen" style="display:none;">
-        <h1>DATA</h1>
-        <button class="btn" onclick="resetData()" style="border-color:red; color:red;">RESET TOUT</button>
-        <button class="btn" onclick="closeSettings()">RETOUR</button>
+        <button class="btn" onclick="closeShop()">RETOUR</button>
     </div>
 
     <div id="hud">
         <div>SCORE: <span id="score">0</span></div>
-        <div>BOMBES: <span id="bomb-count" style="color:red">0</span>/5</div>
+        <div id="bomb-hud">BOMBES: <span id="bomb-count" style="color:red">0</span><span id="bomb-max">/5</span></div>
+        <div id="timer-hud" style="display:none;">TEMPS: <span id="timer-val">90</span>s</div>
         <div><span id="coins">0</span> 🪙</div>
     </div>
     <div id="combo-ui">X1</div>
 
     <div id="over-screen" class="screen" style="display:none;">
-        <h1 style="color:red;">DECONNECTÉ</h1>
+        <h1 id="over-title" style="color:red;">FIN</h1>
         <p id="final-stats"></p>
-        <button class="btn" onclick="startGame()">REESSAYER</button>
+        <button class="btn" onclick="retryGame()">REESSAYER</button>
         <button class="btn" onclick="backToHome()">MENU</button>
     </div>
 
     <canvas id="g"></canvas>
 
 <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDKCYTz2HHoRm3HDJgzH7Julo1WdU29pIc",
+      authDomain: "neonslasher-4127b.firebaseapp.com",
+      projectId: "neonslasher-4127b",
+      storageBucket: "neonslasher-4127b.firebasestorage.app",
+      messagingSenderId: "47168017368",
+      appId: "1:47168017368:web:5f113e045c65f79f2598ad"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const canvas = document.getElementById('g');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
@@ -69,146 +125,164 @@
     let entities = [], particles = [], trail = [], mouse = { x: 0, y: 0, px: 0, py: 0 };
     let shake = 0, frenzy = false, bladeType = localStorage.getItem('bladeType') || 'cyan';
     let unlockedBlades = JSON.parse(localStorage.getItem('unlockedBlades')) || ['cyan'];
+    let gameMode = 'survival', timeLeft = 90, timerInterval;
+    let playerName = localStorage.getItem('playerName') || null;
 
-    function updateMenuStats() {
-        document.getElementById('home-coins').innerText = totalCoins;
-        document.getElementById('high-score-val').innerText = highScore;
+    const BLADES = { 
+        cyan: { color: '#0ff', price: 0 }, pink: { color: '#f0f', price: 300 }, gold: { color: '#ffd700', price: 800 }, 
+        emerald: { color: '#0f0', price: 1200 }, magma: { color: '#ff4500', price: 2000 }, ghost: { color: '#444', price: 2500 }, 
+        rainbow: { color: 'rainbow', price: 5000 } 
+    };
+
+    async function sendScore(s) {
+        if(playerName && s > 0) {
+            try { await db.collection("scores").doc(playerName).set({ name: playerName, score: s, date: Date.now() }, { merge: true }); } catch(e){}
+        }
     }
+
+    async function loadScores() {
+        const list = document.getElementById('leader-content');
+        list.innerHTML = "Chargement...";
+        try {
+            const snapshot = await db.collection("scores").orderBy("score", "desc").limit(10).get();
+            list.innerHTML = "";
+            let rank = 1;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                list.innerHTML += `<div class="leader-item"><span>${rank}. ${data.name}</span> <span>${data.score}</span></div>`;
+                rank++;
+            });
+        } catch(e) { list.innerHTML = "Hors ligne"; }
+    }
+
+    function openLeaderboard() {
+        document.getElementById('settings-screen').style.display = 'none';
+        document.getElementById('leader-screen').style.display = 'flex';
+        if(!playerName) document.getElementById('name-input-section').style.display = 'block';
+        else { document.getElementById('name-input-section').style.display = 'none'; loadScores(); }
+    }
+
+    function savePseudo() {
+        const val = document.getElementById('player-name').value.trim();
+        if(val.length >= 3) { playerName = val; localStorage.setItem('playerName', val); openLeaderboard(); sendScore(highScore); }
+    }
+
+    function updateMenuStats() { document.getElementById('home-coins').innerText = totalCoins; document.getElementById('high-score-val').innerText = highScore; }
     updateMenuStats();
 
-    // INPUTS (PC & MOBILE)
-    function handleStart(x, y) { if(gameActive) { isSlicing = true; mouse.x = x; mouse.y = y; mouse.px = x; mouse.py = y; } }
-    function handleMove(x, y) { mouse.px = mouse.x; mouse.py = mouse.y; mouse.x = x; mouse.y = y; if(isSlicing) trail.push({x: mouse.x, y: mouse.y}); }
-    function handleEnd() { isSlicing = false; trail = []; document.getElementById('combo-ui').style.opacity = 0; currentCombo = 0; frenzy = false; }
+    function openModes() { document.getElementById('home-screen').style.display = 'none'; document.getElementById('mode-screen').style.display = 'flex'; }
+    function toggleChrono() { const dd = document.getElementById('chrono-dropdown'); dd.style.display = (dd.style.display === 'flex') ? 'none' : 'flex'; }
+    function openSettings() { document.getElementById('home-screen').style.display = 'none'; document.getElementById('settings-screen').style.display = 'flex'; }
+    function closeSettings() { document.querySelectorAll('.screen').forEach(s => s.style.display = 'none'); document.getElementById('home-screen').style.display = 'flex'; }
+    function backToHome() { clearInterval(timerInterval); document.querySelectorAll('.screen').forEach(s => s.style.display = 'none'); document.getElementById('home-screen').style.display = 'flex'; updateMenuStats(); }
 
-    window.onmousedown = (e) => handleStart(e.clientX, e.clientY);
-    window.onmousemove = (e) => handleMove(e.clientX, e.clientY);
-    window.onmouseup = () => handleEnd();
-    
-    window.ontouchstart = (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY);
-    window.ontouchmove = (e) => { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); };
-    window.ontouchend = () => handleEnd();
-
-    function startGame() {
-        gameActive = true; score = 0; currentSessionCoins = 0; bombsHit = 0; entities = []; particles = [];
+    function startGame(mode) {
+        gameMode = mode; gameActive = true; score = 0; currentSessionCoins = 0; bombsHit = 0; timeLeft = 90;
+        entities = []; particles = []; currentCombo = 0; frenzy = false;
+        document.getElementById('score').innerText = "0"; document.getElementById('coins').innerText = "0";
         document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
         document.getElementById('hud').style.display = 'flex';
-        if(window.innerWidth > 768) document.body.style.cursor = "none";
+        const bh = document.getElementById('bomb-hud'), th = document.getElementById('timer-hud'), bm = document.getElementById('bomb-max');
+        if(mode === 'survival') { bh.style.display = 'block'; th.style.display = 'none'; bm.innerText = "/5"; }
+        else if(mode === 'chill') { bh.style.display = 'none'; th.style.display = 'block'; startTimer(); }
+        else if(mode === 'chrono') { bh.style.display = 'block'; th.style.display = 'block'; bm.innerText = "/3"; startTimer(); }
+        else if(mode === 'hard') { bh.style.display = 'block'; th.style.display = 'block'; bm.innerText = "/1"; startTimer(); }
+        document.getElementById('bomb-count').innerText = "0";
     }
 
-    function backToHome() {
-        document.getElementById('over-screen').style.display = 'none';
-        document.getElementById('home-screen').style.display = 'flex';
-        updateMenuStats();
-        document.body.style.cursor = "default";
+    function startTimer() { clearInterval(timerInterval); timerInterval = setInterval(() => { if(gameActive) { timeLeft--; document.getElementById('timer-val').innerText = timeLeft; if(timeLeft <= 0) endGame("TEMPS ÉCOULÉ"); } }, 1000); }
+
+    function endGame(reason) {
+        gameActive = false; clearInterval(timerInterval);
+        totalCoins += currentSessionCoins;
+        if(score > highScore) { highScore = score; localStorage.setItem('highScore', highScore); sendScore(highScore); }
+        localStorage.setItem('totalCoins', totalCoins);
+        document.getElementById('over-title').innerText = reason;
+        document.getElementById('final-stats').innerHTML = `SCORE: ${score}<br>PIÈCES: ${currentSessionCoins}`;
+        document.getElementById('over-screen').style.display = 'flex';
     }
 
-    function openSettings() { document.getElementById('home-screen').style.display = 'none'; document.getElementById('settings-screen').style.display = 'flex'; }
-    function closeSettings() { document.getElementById('settings-screen').style.display = 'none'; document.getElementById('home-screen').style.display = 'flex'; }
-    function resetData() { if(confirm("Supprimer toute ta progression ?")) { localStorage.clear(); location.reload(); } }
+    function retryGame() { startGame(gameMode); }
+    function resetData() { if(confirm("Supprimer tout ?")) { localStorage.clear(); location.reload(); } }
 
     function openShop() {
         document.getElementById('home-screen').style.display = 'none';
         document.getElementById('shop-menu').style.display = 'flex';
         const container = document.getElementById('shop-items');
         container.innerHTML = '';
-        const BLADES = { cyan: { color: '#0ff', price: 0 }, pink: { color: '#f0f', price: 300 }, gold: { color: '#ffd700', price: 800 }, ghost: { color: '#444', price: 1500 }, rainbow: { color: 'rainbow', price: 3000 } };
         for (let key in BLADES) {
-            let b = BLADES[key]; let isLocked = !unlockedBlades.includes(key);
+            let b = BLADES[key], isL = !unlockedBlades.includes(key);
+            let box = document.createElement('div'); box.className = 'swatch-box';
             let div = document.createElement('div');
-            div.className = `swatch ${isLocked ? 'locked' : ''} ${bladeType === key ? 'selected' : ''}`;
+            div.className = `swatch ${isL ? 'locked' : ''} ${bladeType === key ? 'selected' : ''}`;
             div.style.background = b.color === 'rainbow' ? "linear-gradient(45deg, red, blue, green)" : b.color;
             div.onclick = () => {
-                if (!isLocked) { bladeType = key; localStorage.setItem('bladeType', key); openShop(); }
-                else if (totalCoins >= b.price) {
-                    totalCoins -= b.price; unlockedBlades.push(key);
-                    localStorage.setItem('totalCoins', totalCoins); localStorage.setItem('unlockedBlades', JSON.stringify(unlockedBlades));
-                    openShop();
-                }
+                if (!isL) { bladeType = key; localStorage.setItem('bladeType', key); openShop(); }
+                else if (totalCoins >= b.price) { totalCoins -= b.price; unlockedBlades.push(key); localStorage.setItem('totalCoins', totalCoins); localStorage.setItem('unlockedBlades', JSON.stringify(unlockedBlades)); openShop(); }
             };
-            container.appendChild(div);
+            let p = document.createElement('div'); p.className = 'price-tag'; p.innerText = isL ? b.price + " 🪙" : "ACQUIS";
+            box.appendChild(div); box.appendChild(p); container.appendChild(box);
         }
     }
-
     function closeShop() { document.getElementById('shop-menu').style.display = 'none'; document.getElementById('home-screen').style.display = 'flex'; }
 
-    class Particle {
-        constructor(x, y, color) {
-            this.x = x; this.y = y; this.color = color;
-            this.vx = (Math.random() - 0.5) * 12; this.vy = (Math.random() - 0.5) * 12;
-            this.life = 1.0; this.size = Math.random() * 4 + 2;
-        }
-        update() { this.x += this.vx; this.y += this.vy; this.vy += 0.2; this.life -= 0.03; }
-        draw() { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1; }
-    }
+    // --- MOTEUR GRAPHIQUE ---
+    function handleStart(x, y) { if(gameActive) { isSlicing = true; mouse.x = x; mouse.y = y; mouse.px = x; mouse.py = y; } }
+    function handleMove(x, y) { mouse.px = mouse.x; mouse.py = mouse.y; mouse.x = x; mouse.y = y; if(isSlicing) trail.push({x: mouse.x, y: mouse.y}); }
+    function handleEnd() { isSlicing = false; trail = []; currentCombo = 0; frenzy = false; document.getElementById('combo-ui').style.opacity = 0; }
+    window.onmousedown = (e) => handleStart(e.clientX, e.clientY);
+    window.onmousemove = (e) => handleMove(e.clientX, e.clientY);
+    window.onmouseup = () => handleEnd();
+    window.ontouchstart = (e) => handleStart(e.touches[0].clientX, e.touches[0].clientY);
+    window.ontouchmove = (e) => { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); };
+    window.ontouchend = () => handleEnd();
 
+    class Particle { constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.vx = (Math.random()-0.5)*12; this.vy = (Math.random()-0.5)*12; this.life = 1.0; } update(){ this.x+=this.vx; this.y+=this.vy; this.vy+=0.2; this.life-=0.03; } draw(){ ctx.globalAlpha=this.life; ctx.fillStyle=this.color; ctx.fillRect(this.x,this.y,4,4); ctx.globalAlpha=1; } }
+    
     class Entity {
         constructor(type) {
-            this.type = type;
-            this.x = Math.random() * (canvas.width - 100) + 50;
-            this.y = canvas.height + 50;
-            this.vx = (Math.random() - 0.5) * (frenzy ? 18 : 10);
-            this.vy = -(Math.random() * 5 + (frenzy ? 20 : 16));
-            this.radius = type === 'virus' ? 15 + Math.random() * 45 : 30;
-            this.color = type === 'bomb' ? "#ff0000" : `hsl(${Math.random() * 360}, 100%, 70%)`;
-            this.sides = type === 'virus' ? Math.floor(Math.random()*4)+3 : 0;
-            this.angle = 0; this.rotSpeed = (Math.random() - 0.5) * 0.2;
+            this.type = type; this.x = Math.random() * (canvas.width - 100) + 50; this.y = canvas.height + 50;
+            this.vx = (Math.random() - 0.5) * (frenzy ? 18 : 10); this.vy = -(Math.random() * 5 + (frenzy ? 20 : 16));
+            this.radius = type === 'virus' ? 25 + Math.random() * 35 : 30; this.color = type === 'bomb' ? "#ff0000" : `hsl(${Math.random() * 360}, 100%, 70%)`;
+            this.sides = type === 'virus' ? Math.floor(Math.random()*4)+3 : 0; this.angle = 0; this.rotSpeed = (Math.random() - 0.5) * 0.2;
         }
         update() { this.x += this.vx; this.vy += 0.3; this.y += this.vy; this.angle += this.rotSpeed; }
         draw() {
-            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
-            ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.strokeStyle = this.color; ctx.lineWidth = 3;
-            ctx.beginPath();
-            if(this.type === 'bomb') { ctx.arc(0,0, this.radius, 0, Math.PI*2); ctx.stroke(); ctx.moveTo(-10,-10); ctx.lineTo(10,10); }
-            else { for(let i=0; i<this.sides; i++) { let a = (Math.PI*2/this.sides)*i; ctx.lineTo(Math.cos(a)*this.radius, Math.sin(a)*this.radius); } }
-            ctx.closePath(); ctx.stroke(); ctx.restore();
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath();
+            if(this.type === 'bomb') { 
+                ctx.arc(0,0, this.radius, 0, Math.PI*2); ctx.stroke(); 
+                ctx.moveTo(-15,-15); ctx.lineTo(15,15); ctx.moveTo(15,-15); ctx.lineTo(-15,15); // LES TRAITS AU MILIEU DES BOMBES
+            } else { 
+                for(let i=0; i<this.sides; i++) { // LES FORMES GÉOMÉTRIQUES
+                    let a = (Math.PI*2/this.sides)*i; ctx.lineTo(Math.cos(a)*this.radius, Math.sin(a)*this.radius); 
+                } 
+            } ctx.closePath(); ctx.stroke(); ctx.restore();
         }
     }
 
     function loop() {
-        if (shake > 0) { ctx.save(); ctx.translate(Math.random()*shake - shake/2, Math.random()*shake - shake/2); shake *= 0.9; }
-        ctx.fillStyle = frenzy ? "rgba(40,0,40,1)" : "black"; ctx.fillRect(0,0, canvas.width, canvas.height);
-
+        if(shake > 0) { ctx.save(); ctx.translate(Math.random()*shake-shake/2, Math.random()*shake-shake/2); shake*=0.9; }
+        ctx.fillStyle = frenzy ? "rgba(40,0,40,1)" : "black"; ctx.fillRect(0,0,canvas.width,canvas.height);
         if(gameActive) {
-            if(Math.random() < (frenzy ? 0.18 : 0.07)) entities.push(new Entity(Math.random() < 0.15 ? 'bomb' : 'virus'));
-            let c = (bladeType === 'rainbow') ? `hsl(${Date.now() % 360}, 100%, 70%)` : (bladeType === 'ghost' ? '#444' : (bladeType === 'pink' ? '#f0f' : (bladeType === 'gold' ? '#ffd700' : '#0ff')));
-            if(isSlicing && trail.length > 1) {
-                ctx.shadowBlur = 15; ctx.shadowColor = c; ctx.strokeStyle = c; ctx.lineWidth = 8;
-                ctx.beginPath(); ctx.moveTo(trail[0].x, trail[0].y);
-                for(let i=1; i<trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
-                ctx.stroke(); if(trail.length > 8) trail.shift();
+            if(Math.random() < (frenzy ? 0.2 : 0.08)) entities.push(new Entity(Math.random() < 0.18 ? 'bomb' : 'virus'));
+            if(isSlicing && trail.length > 1) { 
+                let c = (bladeType === 'rainbow') ? `hsl(${Date.now()%360},100%,70%)` : (BLADES[bladeType].color);
+                ctx.shadowBlur = 15; ctx.shadowColor = c; ctx.strokeStyle = c; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(trail[0].x, trail[0].y);
+                for(let i=1; i<trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y); ctx.stroke(); if(trail.length > 8) trail.shift();
             }
-
-            for(let i = entities.length-1; i>=0; i--) {
+            for(let i=entities.length-1; i>=0; i--) {
                 let e = entities[i]; e.update(); e.draw();
-                let d = Math.hypot(mouse.x - e.x, mouse.y - e.y);
-                if(isSlicing && d < e.radius + 20) {
-                    if(e.type === 'bomb') {
-                        bombsHit++; entities.splice(i, 1); shake = 15;
-                        if(bombsHit >= 5) {
-                            gameActive = false; totalCoins += currentSessionCoins;
-                            if(score > highScore) { highScore = score; localStorage.setItem('highScore', highScore); }
-                            localStorage.setItem('totalCoins', totalCoins);
-                            document.getElementById('final-stats').innerHTML = `SCORE: ${score}<br>PIÈCES: ${currentSessionCoins}`;
-                            document.getElementById('over-screen').style.display = 'flex';
-                            document.body.style.cursor = "default";
-                        }
-                    } else {
-                        for(let p=0; p<10; p++) particles.push(new Particle(e.x, e.y, e.color));
-                        entities.splice(i, 1); currentCombo++; score += 100 * currentCombo; currentSessionCoins++;
-                        if(currentCombo >= 10) frenzy = true; shake = e.radius / 6;
-                        document.getElementById('score').innerText = score; document.getElementById('coins').innerText = currentSessionCoins;
-                        document.getElementById('bomb-count').innerText = bombsHit;
-                        const cUi = document.getElementById('combo-ui');
-                        cUi.innerText = "X"+currentCombo; cUi.style.opacity = 1;
-                    }
+                if(isSlicing && Math.hypot(mouse.x-e.x, mouse.y-e.y) < e.radius + 20) {
+                    if(e.type==='bomb') { entities.splice(i,1); bombsHit++; shake=20; if(gameMode==='chill') timeLeft-=10; else if(gameMode==='hard'||(gameMode==='chrono'&&bombsHit>=3)||(gameMode==='survival'&&bombsHit>=5)) endGame("BOOM"); }
+                    else { entities.splice(i,1); currentCombo++; score+=100*currentCombo; currentSessionCoins++; for(let p=0; p<10; p++) particles.push(new Particle(e.x,e.y,e.color)); if(currentCombo>=10) frenzy=true; shake = e.radius / 6; }
+                    document.getElementById('score').innerText = score; document.getElementById('bomb-count').innerText = bombsHit; document.getElementById('coins').innerText = currentSessionCoins;
+                    const cui = document.getElementById('combo-ui'); cui.innerText = "X"+currentCombo; cui.style.opacity = 1;
                 }
-                if(e.y > canvas.height + 100) entities.splice(i, 1);
+                if(e.y > canvas.height+100) entities.splice(i,1);
             }
         }
-        for(let i = particles.length-1; i>=0; i--) { particles[i].update(); particles[i].draw(); if(particles[i].life <= 0) particles.splice(i, 1); }
-        if (shake > 0.1) ctx.restore();
-        requestAnimationFrame(loop);
+        for(let i=particles.length-1; i>=0; i--) { particles[i].update(); particles[i].draw(); if(particles[i].life<=0) particles.splice(i,1); }
+        if(shake > 0.1) ctx.restore(); requestAnimationFrame(loop);
     }
     loop();
 </script>
